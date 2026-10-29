@@ -4,48 +4,48 @@ const taskService = require("../services/task.service");
  * Create task
  * POST /api/tasks
  */
-const createTask = async (
-  req,
-  res,
-  next
-) => {
+const createTask = async (req, res, next) => {
   try {
     const {
-      duty,
       title,
       description,
+      taskDate,
       dueDate,
       dueTime,
       priority,
+      service,
+      assignedStaff,
+      requiredEquipment,
+      voiceRecording,
+      attachments,
+      estimatedExpenses,
+      location,
       notes,
+      duty,
     } = req.body;
 
-    if (!duty || !title || !dueDate) {
-      const error = new Error(
-        "Duty, title and due date are required"
-      );
-
-      error.statusCode = 400;
-      throw error;
-    }
-
-    const task =
-      await taskService.createTask({
-        duty,
-        title,
-        description,
-        dueDate,
-        dueTime,
-        priority,
-        notes,
-        createdBy:
-          req.user.userId,
-      });
+    const task = await taskService.createTask({
+      title,
+      description,
+      taskDate,
+      dueDate,
+      dueTime,
+      priority,
+      service,
+      assignedStaff,
+      requiredEquipment,
+      voiceRecording,
+      attachments,
+      estimatedExpenses,
+      location,
+      notes,
+      duty,
+      createdBy: req.user.userId || req.user.id || req.user._id,
+    });
 
     res.status(201).json({
       success: true,
-      message:
-        "Task created successfully",
+      message: "Task created successfully",
       data: {
         task,
       },
@@ -59,16 +59,9 @@ const createTask = async (
  * Get tasks
  * GET /api/tasks
  */
-const getTasks = async (
-  req,
-  res,
-  next
-) => {
+const getTasks = async (req, res, next) => {
   try {
-    const result =
-      await taskService.getTasks(
-        req.query
-      );
+    const result = await taskService.getTasks(req.query, req.user);
 
     res.status(200).json({
       success: true,
@@ -81,19 +74,12 @@ const getTasks = async (
 };
 
 /**
- * Get task
+ * Get task by ID
  * GET /api/tasks/:id
  */
-const getTaskById = async (
-  req,
-  res,
-  next
-) => {
+const getTaskById = async (req, res, next) => {
   try {
-    const task =
-      await taskService.getTaskById(
-        req.params.id
-      );
+    const task = await taskService.getTaskById(req.params.id, req.user);
 
     res.status(200).json({
       success: true,
@@ -110,22 +96,49 @@ const getTaskById = async (
  * Update task
  * PUT /api/tasks/:id
  */
-const updateTask = async (
-  req,
-  res,
-  next
-) => {
+const updateTask = async (req, res, next) => {
   try {
-    const task =
-      await taskService.updateTask(
-        req.params.id,
-        req.body
-      );
+    const task = await taskService.updateTask(
+      req.params.id,
+      req.body,
+      req.user
+    );
 
     res.status(200).json({
       success: true,
-      message:
-        "Task updated successfully",
+      message: "Task updated successfully",
+      data: {
+        task,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Update task status (available to staff & managers)
+ * PATCH /api/tasks/:id/status
+ */
+const updateTaskStatus = async (req, res, next) => {
+  try {
+    const { status, notes } = req.body;
+    if (!status) {
+      const error = new Error("Status is required");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const task = await taskService.updateTaskStatus(
+      req.params.id,
+      status,
+      notes || "",
+      req.user
+    );
+
+    res.status(200).json({
+      success: true,
+      message: `Task status updated to ${status}`,
       data: {
         task,
       },
@@ -139,20 +152,42 @@ const updateTask = async (
  * Cancel task
  * DELETE /api/tasks/:id
  */
-const deleteTask = async (
-  req,
-  res,
-  next
-) => {
+const deleteTask = async (req, res, next) => {
   try {
-    await taskService.deleteTask(
-      req.params.id
-    );
+    await taskService.deleteTask(req.params.id);
 
     res.status(200).json({
       success: true,
-      message:
-        "Task cancelled successfully",
+      message: "Task cancelled successfully",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Handle voice recording audio upload
+ * POST /api/tasks/voice-upload
+ */
+const uploadVoiceRecording = async (req, res, next) => {
+  try {
+    if (!req.file) {
+      const error = new Error("No audio file provided");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const fileUrl = `/uploads/audio/${req.file.filename}`;
+
+    res.status(200).json({
+      success: true,
+      message: "Audio uploaded successfully",
+      data: {
+        url: fileUrl,
+        filename: req.file.filename,
+        mimetype: req.file.mimetype,
+        size: req.file.size,
+      },
     });
   } catch (error) {
     next(error);
@@ -164,5 +199,7 @@ module.exports = {
   getTasks,
   getTaskById,
   updateTask,
+  updateTaskStatus,
   deleteTask,
+  uploadVoiceRecording,
 };

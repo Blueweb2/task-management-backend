@@ -21,7 +21,9 @@ const expenseSchema = new mongoose.Schema(
       required: true,
     },
     amount: { type: Number, required: true, min: 0 },
-    event: { type: String, required: true, trim: true, maxlength: 150 },
+    event: { type: String, default: "", trim: true, maxlength: 150 },
+    task: { type: String, default: "", trim: true, maxlength: 200 },
+    taskId: { type: mongoose.Schema.Types.ObjectId, ref: "Task", default: null },
     date: { type: String, required: true, trim: true },
     paymentMethod: {
       type: String,
@@ -44,6 +46,7 @@ const expenseSchema = new mongoose.Schema(
 expenseSchema.index({ date: -1 });
 expenseSchema.index({ category: 1, status: 1 });
 expenseSchema.index({ eventId: 1 });
+expenseSchema.index({ taskId: 1 });
 expenseSchema.index({ createdBy: 1 });
 
 module.exports = mongoose.model("Expense", expenseSchema);

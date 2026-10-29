@@ -20,6 +20,7 @@ const expenseRoutes = require("./routes/expense.routes");
 const reportRoutes = require("./routes/report.routes");
 const departmentRoutes = require("./routes/department.routes");
 const stockRoutes = require("./routes/stock.routes");
+const equipmentRequestRoutes = require("./routes/equipmentRequest.routes");
 
 const mongoose = require("mongoose");
 
@@ -150,6 +151,7 @@ app.use("/api/expenses", expenseRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/departments", departmentRoutes);
 app.use("/api/stock", stockRoutes);
+app.use("/api/equipment-requests", equipmentRequestRoutes);
 
 // 404 handler
 app.use(notFound);

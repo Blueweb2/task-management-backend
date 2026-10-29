@@ -12,6 +12,11 @@ const stockTransactionSchema = new mongoose.Schema(
       ref: "Event",
       default: null,
     },
+    task: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Task",
+      default: null,
+    },
     movement: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "StockMovement",

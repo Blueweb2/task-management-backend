@@ -1,5 +1,25 @@
 require("dotenv").config();
 
+// ─── DNS Override ─────────────────────────────────────────────────────────────
+// Must be applied BEFORE any module that performs network I/O (mongoose, http,
+// socket.io, etc.) is required, so that Node's global dns resolver uses the
+// override servers for ALL lookups — including the SRV record resolution that
+// the MongoDB driver performs for mongodb+srv:// connection strings.
+//
+// Set MONGO_DNS_SERVERS=8.8.8.8,8.8.4.4 in .env to enable.
+// Leave unset (or empty) in production environments where DNS works correctly.
+// ─────────────────────────────────────────────────────────────────────────────
+const dnsServers = process.env.MONGO_DNS_SERVERS
+  ? process.env.MONGO_DNS_SERVERS.split(",").map((s) => s.trim()).filter(Boolean)
+  : [];
+
+if (dnsServers.length > 0) {
+  const dns = require("dns");
+  dns.setServers(dnsServers);
+  console.log(`[DNS] Global resolver overridden: [${dnsServers.join(", ")}]`);
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 const http = require("http");
 const app = require("./app");
 const connectDB = require("./config/db");

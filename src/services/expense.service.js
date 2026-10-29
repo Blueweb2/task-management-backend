@@ -4,6 +4,7 @@ const Event = require("../models/event.model");
 const Booking = require("../models/booking.model");
 const Duty = require("../models/duty.model");
 const User = require("../models/user.model");
+const Task = require("../models/task.model");
 const path = require("path");
 const fs = require("fs");
 
@@ -51,14 +52,27 @@ const normalize = async (data, file) => {
     title: String(data.title || "").trim(),
     category: data.category,
     amount: Number(data.amount),
-    event: String(data.event || "").trim(),
+    event: String(data.event || data.task || "General").trim(),
     eventId: data.eventId || null,
+    task: String(data.task || "").trim(),
+    taskId: data.taskId || null,
     date: String(data.date || "").trim(),
     paymentMethod: data.paymentMethod,
     status: data.status || "Pending",
     description: String(data.description || "").trim(),
     vendorName: String(data.vendorName || "").trim(),
   };
+
+  // If taskId provided, resolve task title
+  if (result.taskId && !result.task && mongoose.isValidObjectId(result.taskId)) {
+    const taskDoc = await Task.findById(result.taskId).select("title").lean();
+    if (taskDoc?.title) {
+      result.task = taskDoc.title;
+      if (!result.event || result.event === "General") {
+        result.event = taskDoc.title;
+      }
+    }
+  }
 
   // If eventId is provided, resolve event name if event name is missing
   if (result.eventId && !result.event && mongoose.isValidObjectId(result.eventId)) {
@@ -93,8 +107,11 @@ const normalize = async (data, file) => {
 };
 
 const validate = (data) => {
-  if (!data.title || !data.event || !data.date)
-    throw new Error("Title, event, and date are required");
+  if (!data.title || !data.date)
+    throw new Error("Title and date are required");
+  if (!data.event) {
+    data.event = data.task || "General";
+  }
   if (!Number.isFinite(data.amount) || data.amount <= 0)
     throw new Error("Expense amount must be greater than zero");
 };
@@ -118,12 +135,26 @@ const getExpenses = async ({
   paymentMethod = "",
   status = "",
   eventId = "",
+  taskId = "",
   createdBy = "",
   startDate = "",
   endDate = "",
   requester = null,
 } = {}) => {
   const andConditions = [];
+
+  if (taskId && taskId !== "All") {
+    if (mongoose.isValidObjectId(taskId)) {
+      andConditions.push({
+        $or: [
+          { taskId: new mongoose.Types.ObjectId(taskId) },
+          { task: taskId },
+        ],
+      });
+    } else {
+      andConditions.push({ task: taskId });
+    }
+  }
 
   if (category && category !== "All") {
     const mapped = categoryAliases[category] || [category];
@@ -203,6 +234,7 @@ const getExpenses = async ({
   const expenses = await Expense.find(query)
     .populate("createdBy", "name username email role department")
     .populate("eventId", "eventName eventDate location status")
+    .populate("taskId", "title dueDate status priority")
     .sort({ date: -1, createdAt: -1 })
     .lean();
 
@@ -216,6 +248,7 @@ const createExpense = async (data, userId, file) => {
   const populated = await Expense.findById(expense._id)
     .populate("createdBy", "name username email role department")
     .populate("eventId", "eventName eventDate location status")
+    .populate("taskId", "title dueDate status priority")
     .lean();
   return formatExpenseDoc(populated);
 };
